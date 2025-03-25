@@ -70,6 +70,7 @@ enum tokenkind {
 	T_IMAGINARY,
 	T_NORETURN,
 	T_NULLABLE,
+	T_UNNULL,
 	T__ASM__,
 	T__ATTRIBUTE__,
 

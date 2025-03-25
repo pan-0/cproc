@@ -597,6 +597,7 @@ keyword(struct token *tok)
 		{"_Nullable",      T_NULLABLE},
 		{"_Static_assert", TSTATIC_ASSERT},
 		{"_Thread_local",  TTHREAD_LOCAL},
+		{"_Unnull",        T_UNNULL},
 		{"__alignof__",    TALIGNOF},
 		{"__asm",          T__ASM__},
 		{"__asm__",        T__ASM__},
