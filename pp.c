@@ -546,6 +546,7 @@ keyword(struct token *tok)
 		{"_Generic",       T_GENERIC},
 		{"_Imaginary",     T_IMAGINARY},
 		{"_Noreturn",      T_NORETURN},
+		{"_Nullable",      T_NULLABLE},
 		{"_Static_assert", TSTATIC_ASSERT},
 		{"_Thread_local",  TTHREAD_LOCAL},
 		{"__alignof__",    TALIGNOF},
