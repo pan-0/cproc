@@ -2,7 +2,6 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
@@ -1069,7 +1068,7 @@ decl(struct scope *s, struct func *f)
 					error(&tok.loc, "object '%s' with block scope and %s linkage cannot have initializer", name, d->linkage == LINKEXTERN ? "external" : "internal");
 				if (d->defined)
 					error(&tok.loc, "object '%s' redefined", name);
-				init = parseinit(s, d->type);
+				init = parseinit(s, d);
 				hasinit = true;
 			} else if (sc & SCEXTERN) {
 				break;

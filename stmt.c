@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
@@ -297,7 +296,7 @@ stmt(struct func *f, struct scope *s)
 		next();
 		t = functype(f);
 		if (t->base != &typevoid) {
-			e = exprassign(expr(s), t->base);
+			e = exprassign(expr(s), t->base, t->qual);
 			v = funcexpr(f, e);
 			delexpr(e);
 		} else {

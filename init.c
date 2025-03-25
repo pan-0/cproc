@@ -192,13 +192,15 @@ advance(struct initparser *p)
 
 /* 6.7.9 Initialization */
 struct init *
-parseinit(struct scope *s, struct type *t)
+parseinit(struct scope *s, struct decl *d)
 {
+	struct type *t;
 	struct initparser p;
 	struct expr *expr;
 	struct type *base;
 	struct bitfield bits;
 
+	t = d->type;
 	p.cur = NULL;
 	p.sub = p.obj;
 	p.sub->offset = 0;
@@ -256,7 +258,7 @@ parseinit(struct scope *s, struct type *t)
 				break;
 			default:  /* scalar type */
 				assert(t->prop & PROPSCALAR);
-				expr = exprassign(expr, t);
+				expr = exprassign(expr, t, d->qual);
 				goto add;
 			}
 			focus(&p);

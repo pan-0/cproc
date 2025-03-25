@@ -522,7 +522,7 @@ struct expr *condexpr(struct scope *);
 unsigned long long intconstexpr(struct scope *, bool);
 void delexpr(struct expr *);
 
-struct expr *exprassign(struct expr *, struct type *);
+struct expr *exprassign(struct expr *, struct type *, enum typequal);
 struct expr *exprpromote(struct expr *);
 
 /* eval */
@@ -532,7 +532,7 @@ struct expr *eval(struct expr *);
 /* init */
 
 struct init *mkinit(unsigned long long, unsigned long long, struct bitfield, struct expr *);
-struct init *parseinit(struct scope *, struct type *);
+struct init *parseinit(struct scope *, struct decl *);
 
 /* stmt */
 

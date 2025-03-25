@@ -191,7 +191,7 @@ nullpointer(struct expr *e)
 }
 
 struct expr *
-exprassign(struct expr *e, struct type *t)
+exprassign(struct expr *e, struct type *t, enum typequal q)
 {
 	struct type *et;
 
@@ -202,14 +202,18 @@ exprassign(struct expr *e, struct type *t)
 			error(&tok.loc, "assignment to bool must be from arithmetic, pointer, or nullptr_t type");
 		break;
 	case TYPEPOINTER:
-		if (nullpointer(e))
+		if (nullpointer(e)) {
 			break;
+		}
 		if (et->kind != TYPEPOINTER)
 			error(&tok.loc, "assignment to pointer must be from pointer or null pointer constant");
 		if (t->base != &typevoid && et->base != &typevoid && !typecompatible(t->base, et->base))
 			error(&tok.loc, "base types of pointer assignment must be compatible or void");
 		if ((et->qual & t->qual) != et->qual)
 			error(&tok.loc, "assignment to pointer discards qualifiers");
+
+		if ((e->qual & QUALNULLABLE) && !(q & QUALNULLABLE))
+			error(&tok.loc, "cannot assign `_Nullable` pointer to normal pointer");
 		break;
 	case TYPENULLPTR:
 		if (!nullpointer(e))
@@ -791,7 +795,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 
 	switch (kind) {
 	case BUILTINALLOCA:
-		e = exprassign(assignexpr(s), &typeulong);
+		e = exprassign(assignexpr(s), &typeulong, QUALNONE);
 		e = mkexpr(EXPRBUILTIN, mkpointertype(&typevoid, QUALNONE), e);
 		e->u.builtin.kind = BUILTINALLOCA;
 		break;
@@ -949,6 +953,9 @@ postfixexpr(struct scope *s, struct expr *r)
 				error(&tok.loc, "called object is not a function");
 			t = r->type->base;
 			e = mkexpr(EXPRCALL, t->base, r);
+			/* Propagate the `_Nullable` qualifier to the call expression. */
+			if (t->qual & QUALNULLABLE)
+				e->qual |= QUALNULLABLE;
 			e->u.call.args = NULL;
 			e->u.call.nargs = 0;
 			p = t->u.func.params;
@@ -962,7 +969,7 @@ postfixexpr(struct scope *s, struct expr *r)
 				if (t->u.func.isvararg && !p)
 					*end = exprpromote(*end);
 				else
-					*end = exprassign(*end, p->type);
+					*end = exprassign(*end, p->type, p->qual);
 				end = &(*end)->next;
 				++e->u.call.nargs;
 				if (p)
@@ -1079,8 +1086,14 @@ unaryexpr(struct scope *s)
 			if (t) {
 				expect(TRPAREN, "after type name");
 				/* might be part of a compound literal */
-				if (op == TSIZEOF && tok.kind == TLBRACE)
-					parseinit(s, t);
+				if (op == TSIZEOF && tok.kind == TLBRACE) {
+					/* XXX: HUGE HACK! */
+					struct decl d;
+					d.kind = DECLTYPE;
+					d.type = t;
+					d.qual = QUALNONE;
+					parseinit(s, &d);
+				}
 				e = NULL;
 			} else {
 				e = expr(s);
@@ -1148,7 +1161,7 @@ castexpr(struct scope *s)
 			d = mkdecl(NULL, DECLOBJECT, t, tq, LINKNONE);
 			d->u.obj.storage = s == &filescope ? SDSTATIC : SDAUTO;
 			e->u.compound.decl = d;
-			e->u.compound.init = parseinit(s, t);
+			e->u.compound.init = parseinit(s, d);
 			e = postfixexpr(s, decay(e));
 			goto done;
 		}
@@ -1293,7 +1306,7 @@ mkassignexpr(struct expr *l, struct expr *r)
 
 	e = mkexpr(EXPRASSIGN, l->type, NULL);
 	e->u.assign.l = l;
-	e->u.assign.r = exprconvert(r, l->type);
+	e->u.assign.r = exprassign(r, l->type, l->qual);
 	return e;
 }
 
