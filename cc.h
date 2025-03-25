@@ -122,7 +122,12 @@ enum tokenkind {
 	TBORASSIGN,
 	TCOMMA,
 	THASH,
-	THASHHASH
+	THASHHASH,
+
+	/* pragmas */
+	TPRAGMA,
+	TPRAGMA_ASSUME_NONNULL_BEGIN,
+	TPRAGMA_ASSUME_NONNULL_END,
 };
 
 struct location {
@@ -294,6 +299,10 @@ struct decl {
 	} u;
 };
 
+enum scopeflags {
+	SCOPEFNONNULL = 1u << 0,
+};
+
 struct scope {
 	struct map tags;
 	struct map decls;
@@ -301,6 +310,7 @@ struct scope {
 	struct block *continuelabel;
 	struct switchcases *switchcases;
 	struct scope *parent;
+	enum scopeflags flags;
 };
 
 enum exprkind {

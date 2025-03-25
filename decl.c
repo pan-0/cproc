@@ -854,6 +854,20 @@ staticassert(struct scope *s)
 	return true;
 }
 
+static bool
+pragma_(struct scope *s)
+{
+	switch (tok.kind) {
+	case TPRAGMA_ASSUME_NONNULL_BEGIN: s->flags |= SCOPEFNONNULL;  break;
+	case TPRAGMA_ASSUME_NONNULL_END:   s->flags &= ~SCOPEFNONNULL; break;
+	default:
+		return false;
+	}
+
+	next();
+	return true;
+}
+
 static void
 structdecl(struct scope *s, struct structbuilder *b)
 {
@@ -997,6 +1011,8 @@ decl(struct scope *s, struct func *f)
 	int align;
 
 	if (staticassert(s))
+		return true;
+	if (pragma_(s))
 		return true;
 	if (attr(NULL, 0) && consume(TSEMICOLON))
 		return true;

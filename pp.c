@@ -299,6 +299,48 @@ undef(void)
 }
 
 static void
+pragma_(void)
+{
+	enum tokenkind kind = TNONE;
+	const char *ident;
+
+	ident = tokencheck(&tok, TIDENT, "identifier after '#pragma'");
+	/*
+	 * First identifier after `#pragma` must be the compiler's name (cproc) in
+	 * order for it to take effect. Otherwise, we skip the whole directive.
+	 */
+	if (strcmp(ident, "cproc") != 0)
+		goto skip;
+
+	scan(&tok);
+	if (tok.kind != TIDENT)
+		goto skip;
+
+	ident = tok.lit;
+	/*
+	 * We only support two pragmas: `assume_nonnull begin`,
+	 *                              `assume_nonnull end`
+	 */
+	if (strcmp(ident, "assume_nonnull") == 0) {
+		scan(&tok);
+		ident = expect(TIDENT, "'begin' or 'end' after 'assume_nonnull'");
+		if (strcmp(ident, "begin") == 0)
+			kind = TPRAGMA_ASSUME_NONNULL_BEGIN;
+		else if (strcmp(ident, "end") == 0)
+			kind = TPRAGMA_ASSUME_NONNULL_END;
+	}
+
+	if (kind != TNONE) {
+		tok.kind = kind;
+		return;
+	}
+
+skip:
+	while (tok.kind != TNEWLINE && tok.kind != TEOF)
+		next();
+}
+
+static void
 directive(void)
 {
 	struct location newloc;
@@ -351,13 +393,17 @@ line:
 	} else if (strcmp(name, "error") == 0) {
 		error(&tok.loc, "#error directive is not implemented");
 	} else if (strcmp(name, "pragma") == 0) {
-		while (tok.kind != TNEWLINE && tok.kind != TEOF)
-			next();
+		scan(&tok);
+		pragma_();
+		if (tok.kind >= TPRAGMA)
+			goto end;
 	} else {
 		error(&tok.loc, "invalid preprocessor directive #%s", name);
 	}
-	free(name);
 	tokencheck(&tok, TNEWLINE, "after preprocessing directive");
+
+end:
+	free(name);
 	ppflags = oldflags;
 }
 
@@ -371,6 +417,8 @@ nextinto(struct token *t)
 		scan(t);
 		if (newline && t->kind == THASH) {
 			directive();
+			if (tok.kind >= TPRAGMA)
+				break;
 		} else {
 			newline = tok.kind == TNEWLINE;
 			break;
