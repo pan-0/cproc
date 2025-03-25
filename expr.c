@@ -85,11 +85,11 @@ mkconstexpr(struct type *t, unsigned long long n)
 	return e;
 }
 
-static struct expr *mkunaryexpr(enum tokenkind, struct expr *);
+static struct expr *mkunaryexpr(struct scope *s, enum tokenkind, struct expr *);
 
 /* 6.3.2.1 Conversion of arrays and function designators */
 static struct expr *
-decay(struct expr *e)
+decay(struct scope *s, struct expr *e)
 {
 	struct type *t;
 	enum typequal tq;
@@ -105,12 +105,12 @@ decay(struct expr *e)
 
 		assert(tq == QUALNONE);
 		*/
-		e = mkunaryexpr(TBAND, e);
+		e = mkunaryexpr(s, TBAND, e);
 		e->type = mkpointertype(t->base, t->qual | tq);
 		e->decayed = true;
 		break;
 	case TYPEFUNC:
-		e = mkunaryexpr(TBAND, e);
+		e = mkunaryexpr(s, TBAND, e);
 		e->decayed = true;
 		break;
 	}
@@ -119,7 +119,7 @@ decay(struct expr *e)
 }
 
 static struct expr *
-mkunaryexpr(enum tokenkind op, struct expr *base)
+mkunaryexpr(struct scope *s, enum tokenkind op, struct expr *base)
 {
 	struct expr *expr;
 	struct type *type;
@@ -145,6 +145,12 @@ mkunaryexpr(enum tokenkind op, struct expr *base)
 	case TMUL:
 		if (base->type->kind != TYPEPOINTER)
 			error(&tok.loc, "cannot dereference non-pointer");
+		/*
+		 * Under non-nullable-by-default semantics (NNBD), `_Nullable`-qualified
+		 * pointers cannot be dereferenced.
+		 */
+		if ((s->flags & SCOPEFNONNULL) && (base->qual & QUALNULLABLE))
+			error(&tok.loc, "cannot dereference `_Nullable`-qualified pointer");
 		if (base->kind == EXPRUNARY && base->op == TBAND) {
 			type = base->type->base;
 			expr = base->base;
@@ -155,7 +161,7 @@ mkunaryexpr(enum tokenkind op, struct expr *base)
 			expr->lvalue = true;
 			expr->op = op;
 		}
-		return decay(expr);
+		return decay(s, expr);
 	}
 	/* other unary operators get compiled as equivalent binary ones */
 	fatal("internal error: unknown unary operator %d", op);
@@ -214,7 +220,7 @@ exprassign(struct expr *e, struct type *t, enum typequal q, enum scopeflags sf)
 		if ((et->qual & t->qual) != et->qual)
 			error(&tok.loc, "assignment to pointer discards qualifiers");
 		if ((e->qual & QUALNULLABLE) && !(q & QUALNULLABLE))
-			error(&tok.loc, "cannot assign `_Nullable` pointer to normal pointer [nullability]");
+			error(&tok.loc, "cannot assign `_Nullable`-qualified pointer to normal pointer [nullability]");
 		break;
 	case TYPENULLPTR:
 		if (!nullpointer(eval(e)))
@@ -660,7 +666,7 @@ primaryexpr(struct scope *s)
 		e->lvalue = d->kind == DECLOBJECT;
 		e->u.ident.decl = d;
 		if (d->kind != DECLBUILTIN)
-			e = decay(e);
+			e = decay(s, e);
 		next();
 		break;
 	case TSTRINGLIT:
@@ -668,7 +674,7 @@ primaryexpr(struct scope *s)
 		t = stringconcat(&e->u.string, false);
 		e->type = mkarraytype(t, QUALNONE, e->u.string.size);
 		e->lvalue = true;
-		e = decay(e);
+		e = decay(s, e);
 		break;
 	case TCHARCONST:
 		src = tok.lit;
@@ -852,7 +858,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		if (!typesame(e->base->type, typeadjvalist))
 			error(&tok.loc, "va_arg argument must have type va_list");
 		if (typeadjvalist == targ->typevalist)
-			e->base = mkunaryexpr(TBAND, e->base);
+			e->base = mkunaryexpr(s, TBAND, e->base);
 		expect(TCOMMA, "after va_list");
 		e->type = typename(s, &e->qual, &toeval);
 		e->toeval = toeval;
@@ -863,13 +869,13 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		if (!typesame(e->u.assign.l->type, typeadjvalist))
 			error(&tok.loc, "va_copy destination must have type va_list");
 		if (typeadjvalist != targ->typevalist)
-			e->u.assign.l = mkunaryexpr(TMUL, e->u.assign.l);
+			e->u.assign.l = mkunaryexpr(s, TMUL, e->u.assign.l);
 		expect(TCOMMA, "after target va_list");
 		e->u.assign.r = assignexpr(s);
 		if (!typesame(e->u.assign.r->type, typeadjvalist))
 			error(&tok.loc, "va_copy source must have type va_list");
 		if (typeadjvalist != targ->typevalist)
-			e->u.assign.r = mkunaryexpr(TMUL, e->u.assign.r);
+			e->u.assign.r = mkunaryexpr(s, TMUL, e->u.assign.r);
 		break;
 	case BUILTINVAEND:
 		e = assignexpr(s);
@@ -883,7 +889,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		if (!typesame(e->base->type, typeadjvalist))
 			error(&tok.loc, "va_start argument must have type va_list");
 		if (typeadjvalist == targ->typevalist)
-			e->base = mkunaryexpr(TBAND, e->base);
+			e->base = mkunaryexpr(s, TBAND, e->base);
 		if (consume(TCOMMA))
 			delexpr(assignexpr(s));
 		break;
@@ -940,7 +946,7 @@ postfixexpr(struct scope *s, struct expr *r)
 				error(&tok.loc, "array is pointer to incomplete type");
 			if (!(idx->type->prop & PROPINT))
 				error(&tok.loc, "index is not an integer type");
-			e = mkunaryexpr(TMUL, mkbinaryexpr(&tok.loc, TADD, arr, idx));
+			e = mkunaryexpr(s, TMUL, mkbinaryexpr(&tok.loc, TADD, arr, idx));
 			expect(TRBRACK, "after array index");
 			break;
 		case TLPAREN:  /* function call */
@@ -978,11 +984,11 @@ postfixexpr(struct scope *s, struct expr *r)
 			}
 			if (p && !t->u.func.isvararg)
 				error(&tok.loc, "not enough arguments for function call");
-			e = decay(e);
+			e = decay(s, e);
 			next();
 			break;
 		case TPERIOD:
-			r = mkunaryexpr(TBAND, r);
+			r = mkunaryexpr(s, TBAND, r);
 			/* fallthrough */
 		case TARROW:
 			op = tok.kind;
@@ -1000,9 +1006,12 @@ postfixexpr(struct scope *s, struct expr *r)
 			m = typemember(t, tok.lit, &offset);
 			if (!m)
 				error(&tok.loc, "struct/union has no member named '%s'", tok.lit);
+			/* Under NNBD semantics, `_Nullable`-qualified pointers cannot be dereferenced. */
+			if ((s->flags & SCOPEFNONNULL) && (r->qual & QUALNULLABLE))
+				error(&tok.loc, "cannot access member '%s' through a `_Nullable`-qualified pointer", tok.lit);
 			r = mkbinaryexpr(&tok.loc, TADD, exprconvert(r, &typeulong), mkconstexpr(&typeulong, offset));
 			r->type = mkpointertype(m->type, tq | m->qual);
-			r = mkunaryexpr(TMUL, r);
+			r = mkunaryexpr(s, TMUL, r);
 			r->lvalue = lvalue;
 			if (m->bits.before || m->bits.after) {
 				e = mkexpr(EXPRBITFIELD, r->type, r);
@@ -1045,7 +1054,7 @@ unaryexpr(struct scope *s)
 	case TBAND:
 	case TMUL:
 		next();
-		return mkunaryexpr(op, castexpr(s));
+		return mkunaryexpr(s, op, castexpr(s));
 	case TADD:
 		next();
 		e = castexpr(s);
@@ -1127,6 +1136,20 @@ unaryexpr(struct scope *s)
 			e = mkconstexpr(&typeulong, op == TSIZEOF ? t->size : t->align);
 		}
 		break;
+	case T_UNNULL:
+		next();
+		expect(TLPAREN, "after type '_Unnull'");
+		e = unaryexpr(s);
+		/* Reject non-pointer types. */
+		if (e->type->kind != TYPEPOINTER)
+			error(&tok.loc, "`_Unnull` accepts only pointer types");
+		/* `_Unnull` rejects expressions that are not `_Nullable`-qualified. */
+		if (!(e->qual & QUALNULLABLE))
+			error(&tok.loc, "`_Unnull` accepts only `_Nullable`-qualified pointer expressions");
+		e->qual &= ~QUALNULLABLE;
+		expect(TRPAREN, "after expression");
+		e = postfixexpr(s, e);
+		break;
 	default:
 		e = postfixexpr(s, NULL);
 	}
@@ -1163,7 +1186,7 @@ castexpr(struct scope *s)
 			d->u.obj.storage = s == &filescope ? SDSTATIC : SDAUTO;
 			e->u.compound.decl = d;
 			e->u.compound.init = parseinit(s, d);
-			e = postfixexpr(s, decay(e));
+			e = postfixexpr(s, decay(s, e));
 			goto done;
 		}
 		if (t != &typevoid && !(t->prop & PROPSCALAR))
@@ -1351,8 +1374,8 @@ assignexpr(struct scope *s)
 	tmp = mkexpr(EXPRTEMP, mkpointertype(l->type, l->qual), NULL);
 	tmp->lvalue = true;
 	tmp->u.temp = NULL;
-	e = mkassignexpr(s, tmp, mkunaryexpr(TBAND, l));
-	l = mkunaryexpr(TMUL, tmp);
+	e = mkassignexpr(s, tmp, mkunaryexpr(s, TBAND, l));
+	l = mkunaryexpr(s, TMUL, tmp);
 	if (bit) {
 		bit->base = l;
 		l = bit;

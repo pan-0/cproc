@@ -149,11 +149,11 @@ struct token {
 enum typequal {
 	QUALNONE,
 
-	QUALCONST    = 1<<1,
-	QUALRESTRICT = 1<<2,
-	QUALVOLATILE = 1<<3,
-	QUALATOMIC   = 1<<4,
-	QUALNULLABLE = 1<<5
+	QUALCONST    = 1u<<1,
+	QUALRESTRICT = 1u<<2,
+	QUALVOLATILE = 1u<<3,
+	QUALATOMIC   = 1u<<4,
+	QUALNULLABLE = 1u<<5
 };
 
 enum typekind {
