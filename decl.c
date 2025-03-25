@@ -466,8 +466,12 @@ declspecs(struct scope *s, enum storageclass *sc, enum funcspec *fs, int *align)
 			error(&tok.loc, "multiple types in declaration specifiers");
 	}
 done:
+	/* Only allow the `restrict` and `_Nullable` qualifiers for pointer and array types. */
 	if ((tq & QUALRESTRICT) && (!t || (t->kind != TYPEPOINTER && t->kind != TYPEARRAY)))
 		error(&tok.loc, "'restrict' is only allowed in pointer and array types");
+	/* Actually, `_Nullable` is not allowed in array types, only pointers. */
+	if ((tq & QUALNULLABLE) && (!t || t->kind != TYPEPOINTER))
+		error(&tok.loc, "'_Nullable' is only allowed in pointer types");
 
 	switch ((int)ts) {
 	case SPECNONE:                                            break;
