@@ -1166,7 +1166,7 @@ castexpr(struct scope *s)
 	struct type *t;
 	struct decl *d;
 	enum typequal tq;
-	struct expr *e, *toeval;
+	struct expr *e, *r, *toeval;
 
 	if (consume(TLPAREN)) {
 		tq = QUALNONE;
@@ -1190,9 +1190,27 @@ castexpr(struct scope *s)
 		}
 		if (t != &typevoid && !(t->prop & PROPSCALAR))
 			error(&tok.loc, "cast type must be scalar");
+		r = castexpr(s);
+		/*
+		 * We now check for nullability casts. Cases:
+		 *
+		 *   (T *_Nullable) nonnull   // Okay.
+		 *   (T *_Nonnull)  nullable  // Error.
+		 *   (T *)          nonnull   // Okay.
+		 *   (T *)          nullable  // Error.
+		 */
+		if (t->kind == TYPEPOINTER && !(tq & QUALNULLABLE)) {
+			if (tq & QUALNONNULL) {
+				if (r->qual & QUALNULLABLE)
+					error(&tok.loc, "cannot cast `_Nullable` to `_Nonnull`; use the `_Unnull` operator instead");
+			}
+			else if (r->qual & QUALNULLABLE)
+				error(&tok.loc, "cannot cast away `_Nullable` qualifier; use the `_Unnull` operator instead");
+		}
 		e = mkexpr(EXPRCAST, t, NULL);
+		e->qual = tq & (QUALNULLABLE|QUALNONNULL);
 		e->toeval = toeval;
-		e->base = castexpr(s);
+		e->base = r;
 	}
 	else {
 		e = unaryexpr(s);

@@ -118,6 +118,7 @@ typequal(enum typequal *tq)
 	case TVOLATILE:  *tq |= QUALVOLATILE; break;
 	case TRESTRICT:  *tq |= QUALRESTRICT; break;
 	case T_NULLABLE: *tq |= QUALNULLABLE; break;
+	case T_NONNULL:  *tq |= QUALNONNULL;  break;
 	case T_ATOMIC: error(&tok.loc, "_Atomic type qualifier is not yet supported");
 	default: return 0;
 	}
