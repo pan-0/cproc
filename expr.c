@@ -1163,21 +1163,18 @@ unaryexpr(struct scope *s)
 static struct expr *
 castexpr(struct scope *s)
 {
-	struct type *t, *ct;
+	struct type *t;
 	struct decl *d;
 	enum typequal tq;
-	struct expr *r, *e, **end, *toeval;
+	struct expr *e, *toeval;
 
-	ct = NULL;
-	end = &r;
-	while (consume(TLPAREN)) {
+	if (consume(TLPAREN)) {
 		tq = QUALNONE;
 		t = typename(s, &tq, &toeval);
 		if (!t) {
 			e = expr(s);
 			expect(TRPAREN, "after expression to match '('");
-			e = postfixexpr(s, e);
-			goto done;
+			return postfixexpr(s, e);
 		}
 		expect(TRPAREN, "after type name");
 		if (tok.kind == TLBRACE) {
@@ -1189,24 +1186,18 @@ castexpr(struct scope *s)
 			d->u.obj.storage = s == &filescope ? SDSTATIC : SDAUTO;
 			e->u.compound.decl = d;
 			e->u.compound.init = parseinit(s, d);
-			e = postfixexpr(s, decay(s, e));
-			goto done;
+			return postfixexpr(s, decay(s, e));
 		}
 		if (t != &typevoid && !(t->prop & PROPSCALAR))
 			error(&tok.loc, "cast type must be scalar");
 		e = mkexpr(EXPRCAST, t, NULL);
 		e->toeval = toeval;
-		*end = e;
-		end = &e->base;
-		ct = t;
+		e->base = castexpr(s);
 	}
-	e = unaryexpr(s);
-
-done:
-	if (ct && ct != &typevoid && !(e->type->prop & PROPSCALAR))
-		error(&tok.loc, "cast operand must have scalar type");
-	*end = e;
-	return r;
+	else {
+		e = unaryexpr(s);
+	}
+	return e;
 }
 
 static int
