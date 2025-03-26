@@ -535,7 +535,7 @@ struct expr *condexpr(struct scope *);
 unsigned long long intconstexpr(struct scope *, bool);
 void delexpr(struct expr *);
 
-struct expr *exprassign(struct expr *, struct type *, enum typequal, enum scopeflags);
+struct expr *exprassign(struct expr *, struct type *, enum typequal);
 struct expr *exprpromote(struct expr *);
 
 /* eval */

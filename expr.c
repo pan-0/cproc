@@ -197,7 +197,7 @@ nullpointer(struct expr *e)
 }
 
 struct expr *
-exprassign(struct expr *e, struct type *t, enum typequal q, enum scopeflags sf)
+exprassign(struct expr *e, struct type *t, enum typequal q)
 {
 	struct type *et;
 
@@ -209,8 +209,8 @@ exprassign(struct expr *e, struct type *t, enum typequal q, enum scopeflags sf)
 		break;
 	case TYPEPOINTER:
 		if (nullpointer(eval(e))) {
-			if ((sf & SCOPEFNONNULL) && !(q & QUALNULLABLE))
-				error(&tok.loc, "cannot assign null to normal pointer [nullability]");
+			if (!(q & QUALNULLABLE))
+				error(&tok.loc, "cannot assign null to non-`_Nullable`-qualified pointer [nullability]");
 			break;
 		}
 		if (et->kind != TYPEPOINTER)
@@ -802,7 +802,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 
 	switch (kind) {
 	case BUILTINALLOCA:
-		e = exprassign(assignexpr(s), &typeulong, QUALNONE, s->flags);
+		e = exprassign(assignexpr(s), &typeulong, QUALNONE);
 		e = mkexpr(EXPRBUILTIN, mkpointertype(&typevoid, QUALNONE), e);
 		e->u.builtin.kind = BUILTINALLOCA;
 		break;
@@ -976,7 +976,7 @@ postfixexpr(struct scope *s, struct expr *r)
 				if (t->u.func.isvararg && !p)
 					*end = exprpromote(*end);
 				else
-					*end = exprassign(*end, p->type, p->qual, s->flags);
+					*end = exprassign(*end, p->type, p->qual);
 				end = &(*end)->next;
 				++e->u.call.nargs;
 				if (p)
@@ -1006,7 +1006,10 @@ postfixexpr(struct scope *s, struct expr *r)
 			m = typemember(t, tok.lit, &offset);
 			if (!m)
 				error(&tok.loc, "struct/union has no member named '%s'", tok.lit);
-			/* Under NNBD semantics, `_Nullable`-qualified pointers cannot be dereferenced. */
+			/*
+			 * Under NNBD semantics, `_Nullable`-qualified pointers cannot be
+			 * dereferenced.
+			 */
 			if ((s->flags & SCOPEFNONNULL) && (r->qual & QUALNULLABLE))
 				error(&tok.loc, "cannot access member '%s' through a `_Nullable`-qualified pointer", tok.lit);
 			r = mkbinaryexpr(&tok.loc, TADD, exprconvert(r, &typeulong), mkconstexpr(&typeulong, offset));
@@ -1324,13 +1327,13 @@ intconstexpr(struct scope *s, bool allowneg)
 }
 
 static struct expr *
-mkassignexpr(struct scope *s, struct expr *l, struct expr *r)
+mkassignexpr(struct expr *l, struct expr *r)
 {
 	struct expr *e;
 
 	e = mkexpr(EXPRASSIGN, l->type, NULL);
 	e->u.assign.l = l;
-	e->u.assign.r = exprassign(r, l->type, l->qual, s->flags);
+	e->u.assign.r = exprassign(r, l->type, l->qual);
 	return e;
 }
 
@@ -1363,7 +1366,7 @@ assignexpr(struct scope *s)
 	next();
 	r = assignexpr(s);
 	if (!op)
-		return mkassignexpr(s, l, r);
+		return mkassignexpr(l, r);
 	/* rewrite `E1 OP= E2` as `T = &E1, *T = *T OP E2`, where T is a temporary slot */
 	if (l->kind == EXPRBITFIELD) {
 		bit = l;
@@ -1374,14 +1377,14 @@ assignexpr(struct scope *s)
 	tmp = mkexpr(EXPRTEMP, mkpointertype(l->type, l->qual), NULL);
 	tmp->lvalue = true;
 	tmp->u.temp = NULL;
-	e = mkassignexpr(s, tmp, mkunaryexpr(s, TBAND, l));
+	e = mkassignexpr(tmp, mkunaryexpr(s, TBAND, l));
 	l = mkunaryexpr(s, TMUL, tmp);
 	if (bit) {
 		bit->base = l;
 		l = bit;
 	}
 	r = mkbinaryexpr(&tok.loc, op, l, r);
-	e->next = mkassignexpr(s, l, r);
+	e->next = mkassignexpr(l, r);
 	return mkexpr(EXPRCOMMA, l->type, e);
 }
 
@@ -1401,5 +1404,8 @@ expr(struct scope *s)
 	}
 	if (!r->next)
 		return r;
-	return mkexpr(EXPRCOMMA, e->type, r);
+
+	r = mkexpr(EXPRCOMMA, e->type, r);
+	r->qual = e->qual & (QUALNONNULL|QUALNULLABLE);
+	return r;
 }

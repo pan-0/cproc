@@ -258,7 +258,7 @@ parseinit(struct scope *s, struct decl *d)
 				break;
 			default:  /* scalar type */
 				assert(t->prop & PROPSCALAR);
-				expr = exprassign(expr, t, d->qual, s->flags);
+				expr = exprassign(expr, t, d->qual);
 				goto add;
 			}
 			focus(&p);

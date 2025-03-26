@@ -531,6 +531,25 @@ istypename(struct scope *s, const char *name)
 	return d && d->kind == DECLTYPE;
 }
 
+static enum typequal
+nullqual(struct scope *s, enum typequal tq)
+{
+	/*
+	 * Implicitly `_Nonnull`-qualify pointers in case of NNBD semantics,
+	 * unless already `_Nullable`-qualified.
+	 *
+	 * Otherwise, implicitly `_Nullable`-qualify.
+	 */
+	if (s->flags & SCOPEFNONNULL) {
+		if (!(tq & QUALNULLABLE))
+			tq |= QUALNONNULL;
+	}
+	else {
+		tq |= QUALNULLABLE;
+	}
+	return tq;
+}
+
 /*
 When parsing a declarator, qualifiers for derived types are temporarily
 stored in the `qual` field of the type itself (elsewhere this field
@@ -552,6 +571,10 @@ declaratortypes(struct scope *s, struct list *result, char **name, struct scope 
 		tq = QUALNONE;
 		while (typequal(&tq))
 			;
+		/* NxNN */
+		if ((tq & (QUALNULLABLE|QUALNONNULL)) == (QUALNULLABLE|QUALNONNULL))
+			error(&tok.loc, "can't use `_Nullable` and `_Nonnull` qualifiers at the same time");
+		tq = nullqual(s, tq);
 		t = mkpointertype(NULL, tq);
 		listinsert(result, &t->link);
 	}
@@ -739,6 +762,13 @@ parameter(struct scope *s)
 		error(&tok.loc, "parameter declaration has invalid storage-class specifier");
 	t = declarator(s, t, &name, NULL, true);
 	t.type = typeadjust(t.type, &t.qual);
+	/*
+	 * Any array parameters have been decayed to pointers (by `typeadjust()`)
+	 * and thus we have to appropriately implicitly qualify them for
+	 * nullability semantics.
+	 */
+	if (t.type->kind == TYPEPOINTER)
+		t.qual = nullqual(s, t.qual);
 	d = mkdecl(name, DECLOBJECT, t.type, t.qual, LINKNONE);
 	d->u.obj.storage = SDAUTO;
 	return d;
