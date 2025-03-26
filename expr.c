@@ -217,7 +217,7 @@ exprassign(struct expr *e, struct type *t, enum typequal q)
 			error(&tok.loc, "assignment to pointer must be from pointer or null pointer constant");
 		if (t->base != &typevoid && et->base != &typevoid && !typecompatible(t->base, et->base))
 			error(&tok.loc, "base types of pointer assignment must be compatible or void");
-		if ((et->qual & t->qual) != et->qual)
+		if ((et->qual & t->qual) != et->qual & (QUALNULLABLE|QUALNONNULL))
 			error(&tok.loc, "assignment to pointer discards qualifiers");
 		if ((e->qual & QUALNULLABLE) && !(q & QUALNULLABLE))
 			error(&tok.loc, "cannot assign `_Nullable`-qualified pointer to normal pointer [nullability]");

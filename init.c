@@ -199,6 +199,7 @@ parseinit(struct scope *s, struct decl *d)
 	struct expr *expr;
 	struct type *base;
 	struct bitfield bits;
+	enum typequal tq;
 
 	t = d->type;
 	p.cur = NULL;
@@ -258,7 +259,11 @@ parseinit(struct scope *s, struct decl *d)
 				break;
 			default:  /* scalar type */
 				assert(t->prop & PROPSCALAR);
-				expr = exprassign(expr, t, d->qual);
+				if (p.cur && p.cur->type->kind == TYPESTRUCT)
+					tq = p.cur->u.mem->qual & (QUALNONNULL|QUALNULLABLE);
+				else
+					tq = QUALNONE;
+				expr = exprassign(expr, t, tq | d->qual);
 				goto add;
 			}
 			focus(&p);
