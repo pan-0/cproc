@@ -545,7 +545,7 @@ nullqual(struct scope *s, enum typequal tq)
 		if (!(tq & QUALNULLABLE))
 			tq |= QUALNONNULL;
 	}
-	else {
+	else if (!(tq & QUALNONNULL)) {
 		tq |= QUALNULLABLE;
 	}
 	return tq;
