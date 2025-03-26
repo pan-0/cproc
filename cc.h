@@ -68,6 +68,7 @@ enum tokenkind {
 	T_DECIMAL64,
 	T_GENERIC,
 	T_IMAGINARY,
+	T_NONNULL,
 	T_NORETURN,
 	T_NULLABLE,
 	T_UNNULL,
@@ -153,7 +154,8 @@ enum typequal {
 	QUALRESTRICT = 1u<<2,
 	QUALVOLATILE = 1u<<3,
 	QUALATOMIC   = 1u<<4,
-	QUALNULLABLE = 1u<<5
+	QUALNULLABLE = 1u<<5,
+	QUALNONNULL  = 1u<<6
 };
 
 enum typekind {

@@ -593,6 +593,7 @@ keyword(struct token *tok)
 		{"_Decimal64",     T_DECIMAL64},
 		{"_Generic",       T_GENERIC},
 		{"_Imaginary",     T_IMAGINARY},
+		{"_Nonnull",       T_NONNULL},
 		{"_Noreturn",      T_NORETURN},
 		{"_Nullable",      T_NULLABLE},
 		{"_Static_assert", TSTATIC_ASSERT},

@@ -64,6 +64,7 @@ const char *tokstr[] = {
 	[T_DECIMAL64] = "_Decimal64",
 	[T_GENERIC] = "_Generic",
 	[T_IMAGINARY] = "_Imaginary",
+	[T_NONNULL] = "_Nonnull",
 	[T_NORETURN] = "_Noreturn",
 	[T_NULLABLE] = "_Nullable",
 	[T_UNNULL] = "_Unnull",
