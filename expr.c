@@ -993,7 +993,7 @@ postfixexpr(struct scope *s, struct expr *r)
 	struct decl *p;
 	struct member *m;
 	unsigned long long offset;
-	enum typequal tq;
+	enum typequal tq, rq;
 	enum tokenkind op;
 	bool lvalue;
 
@@ -1093,21 +1093,23 @@ postfixexpr(struct scope *s, struct expr *r)
 				error(&tok.loc, "struct/union has no member named '%s'", tok.lit);
 
 			/* Nullability checks. */
+			rq = r->qual;
 			switch (s->ns) {
 			case NSMODC:
 			case NSNNBDm:
 			case NSNNBDr:
-				if (r->qual & QUALNULLABLE)
+				if (rq & QUALNULLABLE)
 					error(&tok.loc, "cannot access member '%s' through a `_Nullable`-qualified pointer [nullability]", tok.lit);
 				break;
 			case NSNNBDs:
-				if (!(r->qual & QUALNONNULL))
+				if (!(rq & QUALNONNULL))
 					error(&tok.loc, "cannot access member '%s' through a non-`_Nonnull`-qualified pointer [nullability.NNBDs]", tok.lit);
 				break;
 			}
 
 			r = mkbinaryexpr(s, &tok.loc, TADD, exprconvert(r, &typeulong), mkconstexpr(&typeulong, offset));
 			r->type = mkpointertype(m->type, tq | m->qual);
+			r->qual = rq & (QUALNONNULL|QUALNULLABLE);
 			r = mkunaryexpr(s, TMUL, r);
 			r->lvalue = lvalue;
 			if (m->bits.before || m->bits.after) {
@@ -1124,17 +1126,20 @@ postfixexpr(struct scope *s, struct expr *r)
 			e = mkincdecexpr(tok.kind, r, true);
 
 			/* Nullability checks. */
-			switch (s->ns) {
-			case NSMODC:
-			case NSNNBDm:
-			case NSNNBDr:
-				if (r->qual & QUALNULLABLE)
-					error(&tok.loc, "cannot do pointer arithmetic on `_Nullable`-qualified pointer [nullability]");
-				break;
-			case NSNNBDs:
-				if (!(r->qual & QUALNONNULL))
-					error(&tok.loc, "cannot do pointer arithmetic on non-`_Nonnull`-qualified pointer [nullability.NNBDs]");
-				break;
+			if (r->type->kind == TYPEPOINTER) {
+				switch (s->ns) {
+				case NSMODC:
+				case NSNNBDm:
+				case NSNNBDr:
+					if (r->qual & QUALNULLABLE)
+						error(&tok.loc, "cannot do pointer arithmetic on `_Nullable`-qualified pointer [nullability]");
+					break;
+				case NSNNBDs:
+					if (!(r->qual & QUALNONNULL))
+						error(&tok.loc, "cannot do pointer arithmetic on non-`_Nonnull`-qualified pointer [nullability.NNBDs]");
+					break;
+				}
+				e->qual |= r->qual & (QUALNULLABLE|QUALNONNULL);
 			}
 
 			next();
@@ -1161,20 +1166,23 @@ unaryexpr(struct scope *s)
 	case TDEC:
 		next();
 		l = unaryexpr(s);
-		/* Nullability checks. */
-		switch (s->ns) {
-		case NSMODC:
-		case NSNNBDm:
-		case NSNNBDr:
-			if (l->qual & QUALNULLABLE)
-				error(&tok.loc, "cannot do pointer arithmetic on `_Nullable`-qualified pointer [nullability]");
-			break;
-		case NSNNBDs:
-			if (!(l->qual & QUALNONNULL))
-				error(&tok.loc, "cannot do pointer arithmetic on non-`_Nonnull`-qualified pointer [nullability.NNBDs]");
-			break;
-		}
 		e = mkincdecexpr(op, l, false);
+		/* Nullability checks. */
+		if (l->type->kind == TYPEPOINTER) {
+			switch (s->ns) {
+			case NSMODC:
+			case NSNNBDm:
+			case NSNNBDr:
+				if (l->qual & QUALNULLABLE)
+					error(&tok.loc, "cannot do pointer arithmetic on `_Nullable`-qualified pointer [nullability]");
+				break;
+			case NSNNBDs:
+				if (!(l->qual & QUALNONNULL))
+					error(&tok.loc, "cannot do pointer arithmetic on non-`_Nonnull`-qualified pointer [nullability.NNBDs]");
+				break;
+			}
+			e->qual |= l->qual & (QUALNULLABLE|QUALNONNULL);
+		}
 		break;
 	case TBAND:
 	case TMUL:
@@ -1274,9 +1282,11 @@ unaryexpr(struct scope *s)
 		case NSNNBDr:
 			break;
 		case NSNNBDs:
-			/* TODO: Maybe that's too strict. Relaxing this seems okay. */
+			/* This is too restrictive for now. Relaxing it seems okay. */
+#			if 0
 			if (!(e->qual & QUALNULLABLE) || (e->qual & QUALNONNULL))
 				error(&tok.loc, "`_Unnull` accepts only `_Nullable`-qualified pointer expressions [nullability.NNBDs]");
+#			endif
 			break;
 		}
 		e->qual = (e->qual & ~QUALNULLABLE) | QUALNONNULL;
@@ -1328,8 +1338,7 @@ castexpr(struct scope *s)
 		e->qual = tq & (QUALNONNULL|QUALNULLABLE);
 
 		/* Nullability checks. */
-		if (t->kind == TYPEPOINTER && t->base == &typevoid &&
-				(c = eval(r))->kind == EXPRCONST && c->u.constant.u == 0) {
+		if (t->kind == TYPEPOINTER && (c = eval(r))->kind == EXPRCONST && c->u.constant.u == 0) {
 			e->qual = QUALNULLABLE;
 		}
 		else if (t->kind == TYPEPOINTER && !(tq & QUALNULLABLE)) {
@@ -1491,6 +1500,7 @@ assignexpr(struct scope *s)
 {
 	struct expr *e, *l, *r, *tmp, *bit;
 	enum tokenkind op;
+	enum typequal tq;
 
 	l = condexpr(s);
 	if (l->kind == EXPRBINARY || l->kind == EXPRCOMMA || l->kind == EXPRCAST)
@@ -1514,16 +1524,17 @@ assignexpr(struct scope *s)
 		error(&tok.loc, "left side of assignment expression is not an lvalue");
 
 	/* Nullability checks. */
-	if (op != TNONE) {
+	tq = l->qual;
+	if (op != TNONE && l->type->kind == TYPEPOINTER) {
 		switch (s->ns) {
 		case NSMODC:
 		case NSNNBDm:
 		case NSNNBDr:
-			if (l->qual & QUALNULLABLE)
+			if (tq & QUALNULLABLE)
 				error(&tok.loc, "cannot do pointer arithmetic on `_Nullable`-qualified pointers [nullability]");
 			break;
 		case NSNNBDs:
-			if (!(l->qual & QUALNONNULL))
+			if (!(tq & QUALNONNULL))
 				error(&tok.loc, "cannot do pointer arithmetic on non-`_Nonnull`-qualified pointers [nullability.NNBDs]");
 			break;
 		}
@@ -1541,6 +1552,7 @@ assignexpr(struct scope *s)
 		bit = NULL;
 	}
 	tmp = mkexpr(EXPRTEMP, mkpointertype(l->type, l->qual), NULL);
+	tmp->qual |= QUALNONNULL;
 	tmp->lvalue = true;
 	tmp->u.temp = NULL;
 	e = mkassignexpr(s, tmp, mkunaryexpr(s, TBAND, l));
