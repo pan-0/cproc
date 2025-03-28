@@ -3,6 +3,9 @@
 #include <string.h>
 #include "util.h"
 #include "cc.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 enum attrprefix {
 	PREFIXNONE = 1,  /* standard attribute */
@@ -31,7 +34,7 @@ parseattr(struct attr *a, enum attrkind allowed, enum attrprefix prefix)
 
 	if (tok.kind != TIDENT)
 		return false;
-	name = strip(tok.lit);
+	name = strip(unnull(tok.lit));
 	next();
 	if (!prefix) {
 		if (consume(TCOLONCOLON)) {
@@ -39,7 +42,7 @@ parseattr(struct attr *a, enum attrkind allowed, enum attrprefix prefix)
 				prefix = PREFIXGNU;
 			else
 				prefix = 0;
-			name = strip(expect(TIDENT, "after attribute prefix"));
+			name = strip(unnull(expect(TIDENT, "after attribute prefix")));
 		} else {
 			prefix = PREFIXNONE;
 		}
