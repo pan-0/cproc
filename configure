@@ -156,6 +156,9 @@ static const char *const preprocesscmd[] = {
 
 	/* ignore extension markers */
 	"-D", "__extension__=",
+
+	/* our identification macro */
+	"-D", "__CPROC__",
 $defines};
 static const char *const codegencmd[]    = {"$DEFAULT_QBE"};
 static const char *const assemblecmd[]   = {"$DEFAULT_ASSEMBLER"};
