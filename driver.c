@@ -15,6 +15,9 @@
 #include <unistd.h>
 
 #include "util.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 enum filetype {
 	NONE,   /* detect based on file extension */
@@ -45,7 +48,7 @@ struct stageinfo {
 };
 
 struct input {
-	char *name;
+	char *nullable name;
 	unsigned stages;
 	enum filetype filetype;
 	bool lib;
@@ -64,14 +67,14 @@ static struct stageinfo stages[] = {
 };
 
 static void
-usage(const char *fmt, ...)
+usage(const char *nullable fmt, ...)
 {
 	va_list ap;
 
 	if (fmt) {
 		fprintf(stderr, "%s: ", argv0);
-		va_start(ap, fmt);
-		vfprintf(stderr, fmt, ap);
+		va_start(ap, unnull(fmt));
+		vfprintf(stderr, unnull(fmt), ap);
 		va_end(ap);
 		fputc('\n', stderr);
 	}
@@ -82,10 +85,11 @@ usage(const char *fmt, ...)
 static enum filetype
 detectfiletype(const char *name)
 {
-	const char *dot;
+	const char *nullable ndot;
 
-	dot = strrchr(name, '.');
-	if (dot) {
+	ndot = strrchr(name, '.');
+	if (ndot) {
+		const char *dot = unnull(ndot);
 		++dot;
 		if (strcmp(dot, "c") == 0)
 			return C;
@@ -107,15 +111,15 @@ detectfiletype(const char *name)
 static char *
 changeext(const char *name, const char *ext)
 {
-	const char *slash, *dot;
+	const char *nullable slash, *nullable dot;
 	char *result;
 	size_t baselen;
 
 	slash = strrchr(name, '/');
 	if (slash)
-		name = slash + 1;
+		name = unnull(slash) + 1;
 	dot = strrchr(name, '.');
-	baselen = dot ? (size_t)(--dot - name + 1) : strlen(name);
+	baselen = dot ? (size_t)((unnull(dot) - 1) - name + 1) : strlen(name);
 	result = xmalloc(baselen + strlen(ext) + 2);
 	memcpy(result, name, baselen);
 	result[baselen] = '.';
@@ -125,22 +129,22 @@ changeext(const char *name, const char *ext)
 }
 
 static int
-spawn(pid_t *pid, struct array *args, posix_spawn_file_actions_t *actions)
+spawn(pid_t *pid, struct array *args, posix_spawn_file_actions_t *nullable actions)
 {
 	extern char **environ;
 	char **arg;
 
 	if (flags.verbose) {
 		fprintf(stderr, "%s: spawning", argv0);
-		for (arg = args->val; *arg; ++arg)
+		for (arg = unnull(args->val); *arg; ++arg)
 			fprintf(stderr, " %s", *arg);
 		fputc('\n', stderr);
 	}
-	return posix_spawnp(pid, *(char **)args->val, actions, NULL, args->val, environ);
+	return posix_spawnp(pid, *(char **)unnull(args->val), actions, NULL, args->val, environ);
 }
 
 static int
-spawnphase(struct stageinfo *phase, int *fd, char *input, char *output, bool last)
+spawnphase(struct stageinfo *phase, int *fd, char *nullable input, char *nullable output, bool last)
 {
 	int ret, pipefd[2];
 	posix_spawn_file_actions_t actions;
@@ -148,10 +152,10 @@ spawnphase(struct stageinfo *phase, int *fd, char *input, char *output, bool las
 	phase->cmd.len = phase->cmdbase;
 	if (last && output) {
 		arrayaddptr(&phase->cmd, "-o");
-		arrayaddptr(&phase->cmd, output);
+		arrayaddptr(&phase->cmd, unnull(output));
 	}
 	if (input && *fd == -1)
-		arrayaddptr(&phase->cmd, input);
+		arrayaddptr(&phase->cmd, unnull(input));
 	arrayaddptr(&phase->cmd, NULL);
 
 	ret = posix_spawn_file_actions_init(&actions);
@@ -159,7 +163,11 @@ spawnphase(struct stageinfo *phase, int *fd, char *input, char *output, bool las
 		goto err0;
 	if (*fd != -1)
 		ret = posix_spawn_file_actions_adddup2(&actions, *fd, 0);
+
 	if (!last) {
+		/* `errno` blocks us for now. */
+		NULLABILITY_NNBDm
+
 		if (pipe(pipefd) < 0) {
 			ret = errno;
 			goto err1;
@@ -215,7 +223,7 @@ succeeded(const char *phase, pid_t pid, int status)
 }
 
 static void
-buildobj(struct input *input, char *output)
+buildobj(struct input *input, char *nullable output)
 {
 	const char *phase;
 	size_t i, npids;
@@ -238,11 +246,11 @@ buildobj(struct input *input, char *output)
 		if (strcmp(output, "-") == 0)
 			output = NULL;
 	} else if (input->stages & 1<<ASSEMBLE) {
-		output = changeext(input->name, "o");
+		output = changeext(unnull(input->name), "o");
 	} else if (input->stages & 1<<CODEGEN) {
-		output = changeext(input->name, "s");
+		output = changeext(unnull(input->name), "s");
 	} else if (input->stages & 1<<COMPILE) {
-		output = changeext(input->name, "qbe");
+		output = changeext(unnull(input->name), "qbe");
 	}
 	if (strcmp(input->name, "-") == 0)
 		input->name = NULL;
@@ -294,7 +302,7 @@ kill:
 }
 
 static void
-buildexe(struct input *inputs, size_t ninputs, char *output)
+buildexe(struct input *nullable inputs, size_t ninputs, char *output)
 {
 	struct stageinfo *s = &stages[LINK];
 	size_t i;
@@ -306,41 +314,43 @@ buildexe(struct input *inputs, size_t ninputs, char *output)
 	if (!flags.nostdlib && startfiles[0])
 		arrayaddbuf(&s->cmd, startfiles, sizeof(startfiles));
 	for (i = 0; i < ninputs; ++i) {
-		if (inputs[i].lib)
+		if (unnull(inputs)[i].lib)
 			arrayaddptr(&s->cmd, "-l");
-		arrayaddptr(&s->cmd, inputs[i].name);
+		arrayaddptr(&s->cmd, unnull(inputs)[i].name);
 	}
 	if (!flags.nostdlib && endfiles[0])
 		arrayaddbuf(&s->cmd, endfiles, sizeof(endfiles));
 	arrayaddptr(&s->cmd, NULL);
 
 	ret = spawn(&pid, &s->cmd, NULL);
-	if (ret)
-		fatal("%s: spawn \"%s\": %s", s->name, *(char **)s->cmd.val, strerror(errno));
+	if (ret) {
+		NULLABILITY_NNBDm  /* `errno` blockage */
+		fatal("%s: spawn \"%s\": %s", s->name, *(char **)unnull(s->cmd.val), strerror(errno));
+	}
 	if (waitpid(pid, &status, 0) < 0)
 		fatal("waitpid %ju:", (uintmax_t)pid);
 	for (i = 0; i < ninputs; ++i) {
-		if (inputs[i].filetype != OBJ)
-			unlink(inputs[i].name);
+		if (unnull(inputs)[i].filetype != OBJ)
+			unlink(unnull(inputs)[i].name);
 	}
 	exit(!succeeded(s->name, pid, status));
 }
 
 static char *
-nextarg(char ***argv)
+nextarg(char *nullable **argv)
 {
-	if ((**argv)[2] != '\0')
-		return &(**argv)[2];
+	if (unnull(**argv)[2] != '\0')
+		return &unnull(**argv)[2];
 	++*argv;
 	if (!**argv)
 		usage(NULL);
-	return **argv;
+	return unnull(**argv);
 }
 
 static char *
 compilecommand(char *arg)
 {
-	char self[PATH_MAX], *cmd;
+	char self[PATH_MAX], *nullable cmd;
 	size_t n;
 
 	n = readlink("/proc/self/exe", self, sizeof(self) - 5);
@@ -356,7 +366,7 @@ compilecommand(char *arg)
 	cmd = strdup(self);
 	if (!cmd)
 		fatal("strdup:");
-	return cmd;
+	return unnull(cmd);
 }
 
 static int
@@ -366,11 +376,11 @@ hasprefix(const char *str, const char *pfx)
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, char *nullable *argv)
 {
 	enum stage last = LINK;
 	enum filetype filetype = 0;
-	char *arg, *end, *output = NULL, *arch, *qbearch;
+	char *nullable arg, *nullable end, *nullable output = NULL, *arch, *qbearch;
 	struct array inputs = {0}, *cmd;
 	struct input *input;
 	size_t i;
@@ -378,7 +388,7 @@ main(int argc, char *argv[])
 	argv0 = progname(argv[0], "cproc");
 
 	arrayaddbuf(&stages[PREPROCESS].cmd, preprocesscmd, sizeof(preprocesscmd));
-	arrayaddptr(&stages[COMPILE].cmd, compilecommand(argv[0]));
+	arrayaddptr(&stages[COMPILE].cmd, compilecommand(unnull(argv[0])));
 	arrayaddbuf(&stages[CODEGEN].cmd, codegencmd, sizeof(codegencmd));
 	arrayaddbuf(&stages[ASSEMBLE].cmd, assemblecmd, sizeof(assemblecmd));
 	arrayaddbuf(&stages[LINK].cmd, linkcmd, sizeof(linkcmd));
@@ -406,11 +416,11 @@ main(int argc, char *argv[])
 		arg = *argv;
 		if (!arg)
 			break;
-		if (arg[0] != '-' || arg[1] == '\0') {
+		if (unnull(arg)[0] != '-' || unnull(arg)[1] == '\0') {
 			input = arrayadd(&inputs, sizeof(*input));
 			input->name = arg;
 			input->lib = false;
-			input->filetype = filetype == NONE && arg[1] ? detectfiletype(arg) : filetype;
+			input->filetype = filetype == NONE && unnull(arg)[1] ? detectfiletype(unnull(arg)) : filetype;
 			switch (input->filetype) {
 			case ASM:    input->stages =                                     1<<ASSEMBLE|1<<LINK; break;
 			case ASMPP:  input->stages = 1<<PREPROCESS|                      1<<ASSEMBLE|1<<LINK; break;
@@ -449,9 +459,9 @@ main(int argc, char *argv[])
 			arrayaddptr(&stages[LINK].cmd, "-l");
 			arrayaddptr(&stages[LINK].cmd, "pthread");
 		} else {
-			if (arg[2] != '\0' && strchr("cESsv", arg[1]))
+			if (unnull(arg)[2] != '\0' && strchr("cESsv", unnull(arg)[1]))
 				usage(NULL);
-			switch (arg[1]) {
+			switch (unnull(arg)[1]) {
 			case 'c':
 				last = ASSEMBLE;
 				break;
@@ -518,17 +528,17 @@ main(int argc, char *argv[])
 				flags.verbose = true;
 				break;
 			case 'W':
-				if (arg[2] && arg[3] == ',') {
-					switch (arg[2]) {
+				if (unnull(arg)[2] && unnull(arg)[3] == ',') {
+					switch (unnull(arg)[2]) {
 					case 'p': cmd = &stages[PREPROCESS].cmd; break;
 					case 'a': cmd = &stages[ASSEMBLE].cmd; break;
 					case 'l': cmd = &stages[LINK].cmd; break;
 					default: usage(NULL);
 					}
-					for (arg += 4; arg; arg = end ? end + 1 : NULL) {
+					for (arg = unnull(arg) + 4; arg; arg = end ? unnull(end) + 1 : NULL) {
 						end = strchr(arg, ',');
 						if (end)
-							*end = '\0';
+							*unnull(end) = '\0';
 						arrayaddptr(cmd, arg);
 					}
 				} else {
@@ -583,7 +593,7 @@ main(int argc, char *argv[])
 	if (last == LINK) {
 		if (!output)
 			output = "a.out";
-		buildexe(inputs.val, inputs.len / sizeof(*input), output);
+		buildexe(inputs.val, inputs.len / sizeof(*input), unnull(output));
 	}
 	return 0;
 }

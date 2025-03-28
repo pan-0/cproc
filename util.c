@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
+#include "null.h"
 
 char *argv0;
 
@@ -64,7 +65,7 @@ xreallocarray(void *buf, size_t n, size_t m)
 	return buf;
 }
 
-void *
+void *nonnull
 xmalloc(size_t len)
 {
 	void *buf;
@@ -87,7 +88,7 @@ progname(char *name, char *fallback)
 	return slash ? slash + 1 : name;
 }
 
-void *
+void *nonnull
 arrayadd(struct array *a, size_t n)
 {
 	void *v;

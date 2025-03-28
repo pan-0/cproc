@@ -4,6 +4,9 @@
 #include "util.h"
 #include "arg.h"
 #include "cc.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 static void
 usage(void)
@@ -16,7 +19,7 @@ int
 main(int argc, char *argv[])
 {
 	bool pponly = false;
-	char *output = NULL, *target = NULL;
+	char *nullable output = NULL, *nullable target = NULL;
 
 	argv0 = progname(argv[0], "cproc-qbe");
 	ARGBEGIN {
