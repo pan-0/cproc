@@ -1296,7 +1296,7 @@ castexpr(struct scope *s)
 	struct type *t;
 	struct decl *d;
 	enum typequal tq;
-	struct expr *e, *r, *toeval;
+	struct expr *e, *r, *c, *toeval;
 
 	if (consume(TLPAREN)) {
 		tq = QUALNONE;
@@ -1322,8 +1322,17 @@ castexpr(struct scope *s)
 			error(&tok.loc, "cast type must be scalar");
 		r = castexpr(s);
 
+		e = mkexpr(EXPRCAST, t, NULL);
+		e->toeval = toeval;
+		e->base = r;
+		e->qual = tq & (QUALNONNULL|QUALNULLABLE);
+
 		/* Nullability checks. */
-		if (t->kind == TYPEPOINTER && !(tq & QUALNULLABLE)) {
+		if (t->kind == TYPEPOINTER && t->base == &typevoid &&
+				(c = eval(r))->kind == EXPRCONST && c->u.constant.u == 0) {
+			e->qual = QUALNULLABLE;
+		}
+		else if (t->kind == TYPEPOINTER && !(tq & QUALNULLABLE)) {
 			switch (s->ns) {
 			case NSMODC:
 			case NSNNBDr:
@@ -1342,10 +1351,6 @@ castexpr(struct scope *s)
 			}
 		}
 
-		e = mkexpr(EXPRCAST, t, NULL);
-		e->qual = tq & (QUALNULLABLE|QUALNONNULL);
-		e->toeval = toeval;
-		e->base = r;
 	}
 	else {
 		e = unaryexpr(s);
