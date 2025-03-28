@@ -46,7 +46,7 @@ mkscope(struct scope *parent)
 	s->continuelabel = parent->continuelabel;
 	s->switchcases = parent->switchcases;
 	s->parent = parent;
-	s->flags = parent->flags;  /* inherits parent's flags */
+	s->ns = parent->ns;  /* inherits parent's flags */
 
 	return s;
 }

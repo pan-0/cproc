@@ -259,11 +259,11 @@ parseinit(struct scope *s, struct decl *d)
 				break;
 			default:  /* scalar type */
 				assert(t->prop & PROPSCALAR);
-				if (p.cur && p.cur->type->kind == TYPESTRUCT)
+				if (p.cur && (p.cur->type->kind == TYPESTRUCT || p.cur->type->kind == TYPEUNION))
 					tq = p.cur->u.mem->qual & (QUALNONNULL|QUALNULLABLE);
 				else
 					tq = QUALNONE;
-				expr = exprassign(expr, t, tq | d->qual);
+				expr = exprassign(s, expr, t, tq | d->qual);
 				goto add;
 			}
 			focus(&p);

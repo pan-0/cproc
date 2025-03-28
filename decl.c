@@ -535,18 +535,15 @@ istypename(struct scope *s, const char *name)
 static enum typequal
 nullqual(struct scope *s, enum typequal tq)
 {
-	/*
-	 * Implicitly `_Nonnull`-qualify pointers in case of NNBD semantics,
-	 * unless already `_Nullable`-qualified.
-	 *
-	 * Otherwise, implicitly `_Nullable`-qualify.
-	 */
-	if (s->flags & SCOPEFNONNULL) {
+	switch (s->ns) {
+	case NSMODC:
+		break;
+	case NSNNBDs:
+	case NSNNBDm:
+	case NSNNBDr:
 		if (!(tq & QUALNULLABLE))
 			tq |= QUALNONNULL;
-	}
-	else if (!(tq & QUALNONNULL)) {
-		tq |= QUALNULLABLE;
+		break;
 	}
 	return tq;
 }
@@ -665,6 +662,8 @@ declaratortypes(struct scope *s, struct list *result, char **name, struct scope 
 			t = mkarraytype(NULL, QUALNONE, 0);
 			while (consume(TSTATIC) || typequal(&t->u.array.ptrqual))
 				;
+			t->qual = nullqual(s, t->qual);
+			//t->u.array.ptrqual = nullqual(s, t->u.array.ptrqual);
 			if (tok.kind == TMUL && peek(TRBRACK)) {
 				t->prop |= PROPVM;
 				t->incomplete = false;
@@ -893,8 +892,13 @@ static bool
 pragma_(struct scope *s)
 {
 	switch (tok.kind) {
-	case TPRAGMA_ASSUME_NONNULL_BEGIN: s->flags |= SCOPEFNONNULL;  break;
-	case TPRAGMA_ASSUME_NONNULL_END:   s->flags &= ~SCOPEFNONNULL; break;
+	case TPRAGMA_NULLABILITY_MODC:  s->ns = NSMODC;  break;
+	case TPRAGMA_NULLABILITY_NNBDs: s->ns = NSNNBDs; break;
+	case TPRAGMA_NULLABILITY_NNBDm: s->ns = NSNNBDm; break;
+	case TPRAGMA_NULLABILITY_NNBDr: s->ns = NSNNBDr; break;
+	case TPRAGMA_NULLABILITY_PARENT:
+		s->ns = s->parent ? s->parent->ns : NSMODC;
+		break;
 	default:
 		return false;
 	}

@@ -128,8 +128,11 @@ enum tokenkind {
 
 	/* pragmas */
 	TPRAGMA,
-	TPRAGMA_ASSUME_NONNULL_BEGIN,
-	TPRAGMA_ASSUME_NONNULL_END,
+	TPRAGMA_NULLABILITY_MODC,
+	TPRAGMA_NULLABILITY_NNBDs,
+	TPRAGMA_NULLABILITY_NNBDm,
+	TPRAGMA_NULLABILITY_NNBDr,
+	TPRAGMA_NULLABILITY_PARENT
 };
 
 struct location {
@@ -302,8 +305,12 @@ struct decl {
 	} u;
 };
 
-enum scopeflags {
-	SCOPEFNONNULL = 1u << 0,
+/* Nullability semantics. */
+enum nullsema {
+	NSMODC,   /* MODC semantics [default; backwards compatible] */
+	NSNNBDs,  /* NNBD-relaxed semantics [breaking] */
+	NSNNBDm,  /* NNBD-moderate semantics [breaking] */
+	NSNNBDr   /* NNBD-strict semantics [breaking] */
 };
 
 struct scope {
@@ -313,7 +320,8 @@ struct scope {
 	struct block *continuelabel;
 	struct switchcases *switchcases;
 	struct scope *parent;
-	enum scopeflags flags;
+
+	enum nullsema ns;  /* Nullability semantics under this scope. */
 };
 
 enum exprkind {
@@ -535,7 +543,7 @@ struct expr *condexpr(struct scope *);
 unsigned long long intconstexpr(struct scope *, bool);
 void delexpr(struct expr *);
 
-struct expr *exprassign(struct expr *, struct type *, enum typequal);
+struct expr *exprassign(struct scope *, struct expr *, struct type *, enum typequal);
 struct expr *exprpromote(struct expr *);
 
 /* eval */

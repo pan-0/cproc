@@ -318,19 +318,29 @@ pragma_(void)
 
 	ident = tok.lit;
 	/*
-	 * We only support two pragmas: `assume_nonnull begin`,
-	 *                              `assume_nonnull end`
+	 * We support the following pragmas:
+	 *   - nullability MODC
+	 *   - nullability NNBDs
+	 *   - nullability NNBDr
+	 *   - nullability parent
 	 */
-	if (strcmp(ident, "assume_nonnull") == 0) {
+	if (strcmp(ident, "nullability") == 0) {
 		scan(&tok);
-		ident = expect(TIDENT, "'begin' or 'end' after 'assume_nonnull'");
-		if (strcmp(ident, "begin") == 0)
-			kind = TPRAGMA_ASSUME_NONNULL_BEGIN;
-		else if (strcmp(ident, "end") == 0)
-			kind = TPRAGMA_ASSUME_NONNULL_END;
+		ident = expect(TIDENT, "'MODC', 'NNBDs', 'NNBDr' or 'parent' after 'nullability'");
+		if (strcmp(ident, "MODC") == 0)
+			kind = TPRAGMA_NULLABILITY_MODC;
+		else if (strcmp(ident, "NNBDs") == 0)
+			kind = TPRAGMA_NULLABILITY_NNBDs;
+		else if (strcmp(ident, "NNBDm") == 0)
+			kind = TPRAGMA_NULLABILITY_NNBDm;
+		else if (strcmp(ident, "NNBDr") == 0)
+			kind = TPRAGMA_NULLABILITY_NNBDr;
+		else if (strcmp(ident, "parent") == 0)
+			kind = TPRAGMA_NULLABILITY_PARENT;
 	}
 
 	if (kind != TNONE) {
+		tokencheck(&tok, TNEWLINE, "after preprocessing directive");
 		tok.kind = kind;
 		return;
 	}
