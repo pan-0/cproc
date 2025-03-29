@@ -18,7 +18,27 @@
 #	define NULLABILITY_PARENT
 #	define nullable
 #	define nonnull
+
+#	ifndef NULLCHECK
 #	define unnull
+#	else
+#	include <assert.h>
+#	ifdef __GNUC__
+#		define unnull(ptr)                    \
+			(__extension__ ({                 \
+				__typeof__(ptr) ptr_ = (ptr); \
+				assert(ptr_ != 0);            \
+				ptr_;                         \
+			}))
+#	else
+		inline static void *unnull_checked(void *ptr)
+		{
+			assert(ptr != 0);
+			return ptr;
+		}
+#		define unnull(ptr) ((__typeof__(ptr)) unnull_checked((void *)(ptr)))
+#	endif
+#	endif
 #endif
 
 #endif  /* NULL_H */

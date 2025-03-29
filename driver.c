@@ -582,13 +582,16 @@ main(int argc, char *nullable *argv)
 			usage("cannot specify -o with multiple input files without linking");
 		}
 	}
-	arrayforeach (&inputs, input) {
-		/* ignore the input if it doesn't participate in the last stage */
-		if (!(input->stages & 1 << last))
-			continue;
-		/* only run up through the last stage */
-		input->stages &= (1 << last + 1) - 1;
-		buildobj(input, output);
+	{
+		NULLABILITY_NNBDr  /* Macro expansion (`arrayforeach`) blockage. */
+		arrayforeach (&inputs, input) {
+			/* ignore the input if it doesn't participate in the last stage */
+			if (!(input->stages & 1 << last))
+				continue;
+			/* only run up through the last stage */
+			input->stages &= (1 << last + 1) - 1;
+			buildobj(input, output);
+		}
 	}
 	if (last == LINK) {
 		if (!output)

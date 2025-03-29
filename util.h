@@ -39,7 +39,7 @@ void *nonnull arrayadd(struct array *, size_t);
 void arrayaddptr(struct array *, void *);
 void arrayaddbuf(struct array *, const void *, size_t);
 void *arraylast(struct array *, size_t);
-#define arrayforeach(a, m) for (m = unnull((a)->val); m != (void *)((char *)unnull((a)->val) + (a)->len); ++m)
+#define arrayforeach(a, m) for (m = (a)->val; m != (void *)((char *)((a)->val) + (a)->len); ++m)
 
 /* map */
 
@@ -63,4 +63,4 @@ void *mapget(struct map *, struct mapkey *);
 
 /* tree */
 
-void *treeinsert(void **, unsigned long long, size_t);
+void *nonnull treeinsert(void *nullable *nonnull, unsigned long long, size_t);
