@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "null.h"
 
 struct func;
 
@@ -522,14 +523,14 @@ void emittentativedefns(void);
 /* scope */
 
 void scopeinit(void);
-struct scope *mkscope(struct scope *);
-struct scope *delscope(struct scope *);
+struct scope *nonnull mkscope(struct scope *nonnull);
+struct scope *nullable delscope(struct scope *nonnull);
 
 void scopeputdecl(struct scope *, struct decl *);
-struct decl *scopegetdecl(struct scope *, const char *, bool);
+struct decl *nullable scopegetdecl(struct scope *nonnull, const char *, bool);
 
 void scopeputtag(struct scope *, const char *, struct type *);
-struct type *scopegettag(struct scope *, const char *, bool);
+struct type *nullable scopegettag(struct scope *nonnull, const char *nonnull, bool);
 
 extern struct scope filescope;
 

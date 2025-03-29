@@ -7,7 +7,6 @@
 #include "util.h"
 #include "cc.h"
 
-#include <stdio.h>
 static struct decl *tentativedefns, **tentativedefnsend = &tentativedefns;
 
 struct qualtype {

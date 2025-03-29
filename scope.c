@@ -5,6 +5,8 @@
 #include "cc.h"
 #include "null.h"
 
+NULLABILITY_NNBDs
+
 struct scope filescope;
 
 void
@@ -52,10 +54,10 @@ mkscope(struct scope *parent)
 	return s;
 }
 
-struct scope *
+struct scope *nullable
 delscope(struct scope *s)
 {
-	struct scope *parent = s->parent;
+	struct scope *nullable parent = s->parent;
 
 	if (s->decls.len)
 		mapfree(&s->decls, NULL);
@@ -66,32 +68,36 @@ delscope(struct scope *s)
 	return parent;
 }
 
-struct decl *
+struct decl *nullable
 scopegetdecl(struct scope *s, const char *name, bool recurse)
 {
-	struct decl *d;
+	struct scope *nullable p = s;
+	struct decl *nullable d;
 	struct mapkey k;
 
 	mapkey(&k, name, strlen(name));
 	do {
+		s = unnull(p);
 		d = s->decls.len ? mapget(&s->decls, &k) : NULL;
-		s = s->parent;
-	} while (!d && s && recurse);
+		p = s->parent;
+	} while (!d && p && recurse);
 
 	return d;
 }
 
-struct type *
+struct type *nullable
 scopegettag(struct scope *s, const char *name, bool recurse)
 {
-	struct type *t;
+	struct scope *nullable p = s;
+	struct type *nullable t;
 	struct mapkey k;
 
 	mapkey(&k, name, strlen(name));
 	do {
+		s = unnull(p);
 		t = s->tags.len ? mapget(&s->tags, &k) : NULL;
-		s = s->parent;
-	} while (!t && s && recurse);
+		p = s->parent;
+	} while (!t && p && recurse);
 
 	return t;
 }
