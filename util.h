@@ -26,7 +26,7 @@ void warn(const char *, ...);
 void fatal(const char *fmt, ...);
 
 void *reallocarray(void *, size_t, size_t);
-void *xreallocarray(void *, size_t, size_t);
+void *nonnull xreallocarray(void *, size_t, size_t);
 void *nonnull xmalloc(size_t);
 
 char *progname(char *, char *);
@@ -45,8 +45,8 @@ void *arraylast(struct array *, size_t);
 
 struct map {
 	size_t len, cap;
-	struct mapkey *keys;
-	void **vals;
+	struct mapkey *nonnull keys;
+	void **nonnull vals;
 };
 
 struct mapkey {
@@ -58,8 +58,8 @@ struct mapkey {
 void mapkey(struct mapkey *, const void *, size_t);
 void mapinit(struct map *, size_t);
 void mapfree(struct map *, void(void *));
-void **mapput(struct map *, struct mapkey *);
-void *mapget(struct map *, struct mapkey *);
+void *nullable *nonnull mapput(struct map *nonnull, struct mapkey *nonnull);
+void *nullable mapget(struct map *nonnull, struct mapkey *nonnull);
 
 /* tree */
 

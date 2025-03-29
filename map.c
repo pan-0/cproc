@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 static unsigned long
 hash(const void *ptr, size_t len)
@@ -40,7 +43,7 @@ mapinit(struct map *h, size_t cap)
 }
 
 void
-mapfree(struct map *h, void del(void *))
+mapfree(struct map *h, void del(void *nullable))
 {
 	size_t i;
 
@@ -73,7 +76,7 @@ keyindex(struct map *h, struct mapkey *k)
 	return i;
 }
 
-void **
+void *nullable *
 mapput(struct map *h, struct mapkey *k)
 {
 	struct mapkey *oldkeys;
@@ -109,7 +112,7 @@ mapput(struct map *h, struct mapkey *k)
 	return &h->vals[i];
 }
 
-void *
+void *nullable
 mapget(struct map *h, struct mapkey *k)
 {
 	size_t i;

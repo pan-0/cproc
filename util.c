@@ -55,14 +55,14 @@ reallocarray(void *buf, size_t n, size_t m)
 	return realloc(buf, n * m);
 }
 
-void *
+void *nonnull
 xreallocarray(void *buf, size_t n, size_t m)
 {
 	buf = reallocarray(buf, n, m);
 	if (!buf && n && m)
 		fatal("reallocarray:");
 
-	return buf;
+	return unnull(buf);
 }
 
 void *nonnull
