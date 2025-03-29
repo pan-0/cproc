@@ -1,9 +1,9 @@
-#include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ascii.h"
 #include "util.h"
 #include "cc.h"
 
@@ -123,16 +123,10 @@ static int
 ident(struct scanner *s)
 {
 	s->usebuf = true;
-	while (isalnum(s->chr) || s->chr == '_')
+	while (is_alnum(s->chr) || s->chr == '_')
 		nextchar(s);
 
 	return TIDENT;
-}
-
-static int
-isodigit(int c)
-{
-	return (unsigned)c - '0' < 8;
 }
 
 static enum tokenkind
@@ -160,7 +154,7 @@ number(struct scanner *s)
 			allowsign = false;
 			break;
 		default:
-			if (!isalnum(s->chr))
+			if (!is_alnum(s->chr))
 				goto done;
 			allowsign = false;
 		}
@@ -175,15 +169,15 @@ escape(struct scanner *s)
 	nextchar(s);
 	if (s->chr == 'x') {
 		nextchar(s);
-		if (!isxdigit(s->chr))
+		if (!is_xdigit(s->chr))
 			error(&s->loc, "invalid hexadecimal escape sequence");
 		do nextchar(s);
-		while (isxdigit(s->chr));
-	} else if (isodigit(s->chr)) {
+		while (is_xdigit(s->chr));
+	} else if (is_odigit(s->chr)) {
 		nextchar(s);
-		if (isodigit(s->chr)) {
+		if (is_odigit(s->chr)) {
 			nextchar(s);
-			if (isodigit(s->chr))
+			if (is_odigit(s->chr))
 				nextchar(s);
 		}
 	} else if (strchr("'\"?\\abfnrtv", s->chr)) {
@@ -348,7 +342,7 @@ again:
 		return TRBRACE;
 	case '.':
 		nextchar(s);
-		if (isdigit(s->chr)) {
+		if (is_digit(s->chr)) {
 			bufadd(&s->buf, '.');
 			return number(s);
 		}
@@ -397,9 +391,9 @@ again:
 	case EOF:
 		return TEOF;
 	default:
-		if (isdigit(s->chr))
+		if (is_digit(s->chr))
 			return number(s);
-		if (isalpha(s->chr) || s->chr == '_')
+		if (is_alpha(s->chr) || s->chr == '_')
 			return ident(s);
 		s->usebuf = true;
 		nextchar(s);

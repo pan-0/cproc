@@ -1,10 +1,10 @@
 #include <assert.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ascii.h"
 #include "util.h"
 #include "utf.h"
 #include "cc.h"
@@ -481,7 +481,7 @@ inttype(unsigned long long val, bool decimal, char *end)
 	size_t i, step;
 
 	for (i = 0; end[i]; ++i)
-		end[i] = tolower(end[i]);
+		end[i] = to_lower(end[i]);
 	for (i = 0; i < LEN(limits); ++i) {
 		if (strcmp(end, limits[i].end1) == 0)
 			break;
@@ -498,12 +498,6 @@ inttype(unsigned long long val, bool decimal, char *end)
 	}
 	error(&tok.loc, "no suitable type for constant '%s'", tok.lit);
 	return NULL;
-}
-
-static int
-isodigit(int c)
-{
-	return '0' <= c && c <= '8';
 }
 
 static size_t
@@ -530,19 +524,19 @@ decodechar(const char *src, uint_least32_t *chr, bool *hexoct, const char *desc,
 		case 'v':  c = '\v'; ++s; break;
 		case 'x':
 			++s;
-			assert(isxdigit(*s));
+			assert(is_xdigit(*s));
 			c = 0;
-			do c = c * 16 + (*s > '9' ? 10 + tolower(*s) - 'a' : *s - '0');
-			while (isxdigit(*++s));
+			do c = c * 16 + (*s > '9' ? 10 + to_lower(*s) - 'a' : *s - '0');
+			while (is_xdigit(*++s));
 			if (hexoct)
 				*hexoct = true;
 			break;
 		default:
-			assert(isodigit(*s));
+			assert(is_odigit(*s));
 			c = 0;
 			i = 0;
 			do c = c * 8 + (*s++ - '0');
-			while (++i < 3 && isodigit(*s));
+			while (++i < 3 && is_odigit(*s));
 			if (hexoct)
 				*hexoct = true;
 		}
@@ -766,7 +760,7 @@ primaryexpr(struct scope *s)
 	case TNUMBER:
 		e = mkexpr(EXPRCONST, NULL, NULL);
 		if (tok.lit[0] == '0') {
-			switch (tolower(tok.lit[1])) {
+			switch (to_lower(tok.lit[1])) {
 			case 'x': base = 16; break;
 			case 'b': base = 2; break;
 			default: base = 8; break;
@@ -781,9 +775,9 @@ primaryexpr(struct scope *s)
 				error(&tok.loc, "invalid floating constant '%s'", tok.lit);
 			if (!end[0])
 				e->type = &typedouble;
-			else if (tolower(end[0]) == 'f' && !end[1])
+			else if (to_lower(end[0]) == 'f' && !end[1])
 				e->type = &typefloat;
-			else if (tolower(end[0]) == 'l' && !end[1])
+			else if (to_lower(end[0]) == 'l' && !end[1])
 				e->type = &typeldouble;
 			else
 				error(&tok.loc, "invalid floating constant suffix '%s'", end);

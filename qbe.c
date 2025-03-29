@@ -1,10 +1,10 @@
 #include <assert.h>
-#include <ctype.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ascii.h"
 #include "util.h"
 #include "cc.h"
 #include "null.h"
@@ -1366,7 +1366,7 @@ dataitem(struct expr *expr, unsigned long long size)
 			fputc('"', stdout);
 			for (i = 0; i < expr->u.string.size && i < size; ++i) {
 				c = ((unsigned char *)expr->u.string.data)[i];
-				if (isprint(c) && c != '"' && c != '\\')
+				if (is_print(c) && c != '"' && c != '\\')
 					putchar(c);
 				else
 					printf("\\%03o", c);
