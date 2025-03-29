@@ -7,6 +7,7 @@
 #include "util.h"
 #include "cc.h"
 
+#include <stdio.h>
 static struct decl *tentativedefns, **tentativedefnsend = &tentativedefns;
 
 struct qualtype {
@@ -682,7 +683,7 @@ declaratortypes(struct scope *s, struct list *result, char **name, struct scope 
 			if (!allowattr)
 				error(&tok.loc, "attribute not allowed after parenthesized declarator");
 			/* attribute applies to identifier if ptr->prev == result, otherwise type ptr->prev */
-			gnuattr(NULL, 0);
+			gnuattr(NULL, ATTRALIGNED);
 		attr:
 			break;
 		default:
