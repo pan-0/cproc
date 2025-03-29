@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: ${OBJDIR:=stage1}
+: ${OBJDIR:=stage-1}
 : ${CCQBE:="$OBJDIR/cproc-qbe"}
 
 if [ $# = 0 ] ; then

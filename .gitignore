@@ -1,10 +1,9 @@
 *.o
-/cproc
-/cproc-qbe
 /config.h
 /config.mk
-/stage2
-/stage3
+/stage-1
+/stage-2
+/stage-3
 tags*
 trash/
 a.out
