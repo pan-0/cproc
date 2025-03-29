@@ -1,6 +1,7 @@
 #!/bin/sh
 
-: ${CCQBE:=./cproc-qbe}
+: ${OBJDIR:=stage1}
+: ${CCQBE:="$OBJDIR/cproc-qbe"}
 
 if [ $# = 0 ] ; then
 	set -- test/*.c
