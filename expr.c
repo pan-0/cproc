@@ -8,6 +8,7 @@
 #include "util.h"
 #include "utf.h"
 #include "cc.h"
+#include "null.h"
 
 static struct expr *
 mkexpr(enum exprkind k, struct type *t, struct expr *b)
@@ -628,7 +629,7 @@ stringconcat(struct stringlit *str, bool forceutf8)
 	case '8': t = &typeuchar; break;
 	case 'u': t = &typeushort; break;
 	case 'U': t = &typeuint; break;
-	case 'L': t = targ->typewchar; break;
+	case 'L': t = unnull(targ)->typewchar; break;
 	default: assert(0);
 	}
 	switch (t->size) {
@@ -749,7 +750,7 @@ primaryexpr(struct scope *s)
 	case TCHARCONST:
 		src = tok.lit;
 		switch (*src) {
-		case 'L': ++src; t = targ->typewchar; break;
+		case 'L': ++src; t = unnull(targ)->typewchar; break;
 		case 'u': ++src; t = *src == '8' ? ++src, &typeuchar : &typeushort; break;
 		case 'U': ++src; t = &typeuint; break;
 		default: t = &typeint;
@@ -927,7 +928,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		e->u.builtin.kind = BUILTINVAARG;
 		if (!typesame(e->base->type, typeadjvalist))
 			error(&tok.loc, "va_arg argument must have type va_list");
-		if (typeadjvalist == targ->typevalist)
+		if (typeadjvalist == unnull(targ)->typevalist)
 			e->base = mkunaryexpr(s, TBAND, e->base);
 		expect(TCOMMA, "after va_list");
 		e->type = typename(s, &e->qual, &toeval);
@@ -938,13 +939,13 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		e->u.assign.l = assignexpr(s);
 		if (!typesame(e->u.assign.l->type, typeadjvalist))
 			error(&tok.loc, "va_copy destination must have type va_list");
-		if (typeadjvalist != targ->typevalist)
+		if (typeadjvalist != unnull(targ)->typevalist)
 			e->u.assign.l = mkunaryexpr(s, TMUL, e->u.assign.l);
 		expect(TCOMMA, "after target va_list");
 		e->u.assign.r = assignexpr(s);
 		if (!typesame(e->u.assign.r->type, typeadjvalist))
 			error(&tok.loc, "va_copy source must have type va_list");
-		if (typeadjvalist != targ->typevalist)
+		if (typeadjvalist != unnull(targ)->typevalist)
 			e->u.assign.r = mkunaryexpr(s, TMUL, e->u.assign.r);
 		break;
 	case BUILTINVAEND:
@@ -958,7 +959,7 @@ builtinfunc(struct scope *s, enum builtinkind kind)
 		e->u.builtin.kind = BUILTINVASTART;
 		if (!typesame(e->base->type, typeadjvalist))
 			error(&tok.loc, "va_start argument must have type va_list");
-		if (typeadjvalist == targ->typevalist)
+		if (typeadjvalist == unnull(targ)->typevalist)
 			e->base = mkunaryexpr(s, TBAND, e->base);
 		if (consume(TCOMMA))
 			delexpr(assignexpr(s));

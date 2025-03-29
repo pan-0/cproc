@@ -488,7 +488,7 @@ struct target {
 	int signedchar;
 };
 
-extern const struct target *targ;
+extern const struct target *nullable targ;
 
 void targinit(const char *);
 

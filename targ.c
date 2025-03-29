@@ -1,9 +1,13 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 #include "util.h"
 #include "cc.h"
+#include "null.h"
 
-const struct target *targ;
+NULLABILITY_NNBDs
+
+const struct target *nullable targ = NULL;
 
 static const struct target alltargs[] = {
 	{
@@ -55,7 +59,7 @@ targinit(const char *name)
 	}
 	if (!targ)
 		fatal("unknown target '%s'", name);
-	typechar.u.basic.issigned = targ->signedchar;
+	typechar.u.basic.issigned = unnull(targ)->signedchar;
 	qual = QUALNONE;
-	typeadjvalist = typeadjust(targ->typevalist, &qual);
+	typeadjvalist = typeadjust(unnull(targ)->typevalist, &qual);
 }

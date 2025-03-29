@@ -3,6 +3,7 @@
 #include <string.h>
 #include "util.h"
 #include "cc.h"
+#include "null.h"
 
 struct scope filescope;
 
@@ -30,7 +31,7 @@ scopeinit(void)
 		scopeputdecl(&filescope, d);
 	valist.name = "__builtin_va_list";
 	valist.kind = DECLTYPE;
-	valist.type = targ->typevalist;
+	valist.type = unnull(targ)->typevalist;
 	scopeputdecl(&filescope, &valist);
 }
 

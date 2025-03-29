@@ -7,6 +7,7 @@
 #include <string.h>
 #include "util.h"
 #include "cc.h"
+#include "null.h"
 
 struct value {
 	enum {
@@ -1144,7 +1145,7 @@ emittype(struct type *t)
 	}
 	fputs("type ", stdout);
 	emitname(t->value);
-	if (t == targ->typevalist) {
+	if (t == unnull(targ)->typevalist) {
 		printf(" = align %d { %llu }\n", t->align, t->size);
 		return;
 	}
