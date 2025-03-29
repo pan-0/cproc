@@ -2,22 +2,27 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "util.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 #define MAXH (sizeof(void *) * 8 * 3 / 2)
 
 static inline int
-height(struct treenode *n) {
-	return n ? n->height : 0;
+height(struct treenode *nullable n) {
+	return n ? unnull(n)->height : 0;
 }
 
 static int
 rot(void **p, struct treenode *x, int dir /* deeper side */)
 {
-	struct treenode *y = x->child[dir];
-	struct treenode *z = y->child[!dir];
+	struct treenode *z;
+	struct treenode *y = unnull(x->child[dir]);
+	struct treenode *nullable nz = y->child[!dir];
 	int hx = x->height;
-	int hz = height(z);
+	int hz = height(nz);
 	if (hz > height(y->child[dir])) {
+		z = unnull(nz);
 		/*
 		 *   x
 		 *  / \ dir          z
@@ -42,7 +47,7 @@ rot(void **p, struct treenode *x, int dir /* deeper side */)
 		 *    / \         / \
 		 *   z   D       A   z
 		 */
-		x->child[dir] = z;
+		x->child[dir] = nz;
 		y->child[!dir] = x;
 		x->height = hz + 1;
 		y->height = hz + 2;
@@ -67,30 +72,31 @@ static int balance(void **p)
 }
 
 void *
-treeinsert(void **root, unsigned long long key, size_t sz)
+treeinsert(void *nullable *root, unsigned long long key, size_t sz)
 {
 	void **a[MAXH];
-	struct treenode *n = *root;
+	struct treenode *r, *nullable nn = *root;
 	int i = 0;
 
 	a[i++] = root;
-	while (n) {
+	while (nn) {
+		struct treenode *n = unnull(nn);
 		if (key == n->key) {
 			n->new = false;
 			return n;
 		}
 		a[i++] = &n->child[key > n->key];
-		n = n->child[key > n->key];
+		nn = n->child[key > n->key];
 	}
-	assert(sz > sizeof(*n));
-	n = xmalloc(sz);
-	n->key = key;
-	n->child[0] = n->child[1] = 0;
-	n->height = 1;
+	assert(sz > sizeof(*r));
+	r = xmalloc(sz);
+	r->key = key;
+	r->child[0] = r->child[1] = 0;
+	r->height = 1;
 	/* insert new node, rebalance ancestors.  */
-	*a[--i] = n;
+	*a[--i] = r;
 	while (i && balance(a[--i]))
 		;
-	n->new = true;
-	return n;
+	r->new = true;
+	return r;
 }
