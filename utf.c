@@ -2,6 +2,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "utf.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 size_t
 utf8enc(unsigned char *s, uint_least32_t c)
