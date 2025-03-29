@@ -1,15 +1,16 @@
 #include <assert.h>
-#include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "ascii.h"
 #include "util.h"
 #include "cc.h"
+#include "null.h"
 
 struct token tok;
 
-const char *tokstr[] = {
+const char *nonnull tokstr[] = {
 	/* keyword */
 	[TALIGNAS] = "alignas",
 	[TALIGNOF] = "alignof",
@@ -123,10 +124,12 @@ const char *tokstr[] = {
 	[THASHHASH] = "##",
 };
 
+NULLABILITY_NNBDs
+
 void
 tokenprint(const struct token *t)
 {
-	const char *str;
+	const char *nullable str;
 
 	if (t->space)
 		fputc(' ', stdout);
@@ -151,9 +154,9 @@ tokenprint(const struct token *t)
 }
 
 static void
-tokendesc(char *buf, size_t len, enum tokenkind kind, const char *lit)
+tokendesc(char *buf, size_t len, enum tokenkind kind, const char *nullable lit)
 {
-	const char *class;
+	const char *nullable class;
 	bool quote = true;
 
 	switch (kind) {
@@ -172,15 +175,15 @@ tokendesc(char *buf, size_t len, enum tokenkind kind, const char *lit)
 		snprintf(buf, len, quote ? "%s '%s'" : "%s %s", class, lit);
 	else if (class)
 		snprintf(buf, len, "%s", class);
-	else if (kind == TOTHER && !isprint(*(unsigned char *)lit))
-		snprintf(buf, len, "<U+%04x>", *(unsigned char *)lit);
+	else if (kind == TOTHER && !is_print(*unnull(lit)))
+		snprintf(buf, len, "<U+%04x>", *unnull(lit));
 	else if (lit)
 		snprintf(buf, len, "'%s'", lit);
 	else
 		snprintf(buf, len, "<unknown>");
 }
 
-char *
+char *nullable
 tokencheck(const struct token *t, enum tokenkind kind, const char *msg)
 {
 	char want[64], got[64];

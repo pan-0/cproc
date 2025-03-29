@@ -423,10 +423,10 @@ struct init {
 /* token */
 
 extern struct token tok;
-extern const char *tokstr[];
+extern const char *nonnull tokstr[];
 
 void tokenprint(const struct token *);
-char *tokencheck(const struct token *, enum tokenkind, const char *);
+char *nullable tokencheck(const struct token *nonnull, enum tokenkind, const char *nonnull);
 void error(const struct location *, const char *, ...);
 
 /* scan */
