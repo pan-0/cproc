@@ -14,8 +14,8 @@ config.mk config.h:
 
 include config.mk
 
-$(BUILDDIR):
-	@mkdir -p $@
+$(BUILDDIR)/marker:
+	@mkdir -p $(BUILDDIR) && touch $@
 
 $(BUILDDIR)/cproc: $(BUILDDIR)/driver.o $(BUILDDIR)/util.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
