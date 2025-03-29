@@ -1,6 +1,5 @@
 .POSIX:
 .SUFFIXES:
--include config.mk
 MANDIR=$(PREFIX)/share/man
 BUILDDIR=stage-1
 
@@ -9,6 +8,11 @@ OBJ=$(SRC:%.c=$(BUILDDIR)/%.o)
 
 .PHONY: all
 all: $(BUILDDIR)/cproc $(BUILDDIR)/cproc-qbe
+
+config.mk config.h:
+	./configure
+
+include config.mk
 
 $(BUILDDIR):
 	@mkdir -p $@
@@ -19,11 +23,8 @@ $(BUILDDIR)/cproc: $(BUILDDIR)/driver.o $(BUILDDIR)/util.o
 $(BUILDDIR)/cproc-qbe: $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-config.h:
-	./configure
-
 C = $(CC) $(CFLAGS) -c $< -o $@
--include deps.mk
+include deps.mk
 
 # Make sure stage2 and stage3 binaries are stripped by adding `-s` to
 # `LDFLAGS`. Otherwise they will contain paths to object files, which differ
