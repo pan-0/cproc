@@ -6,9 +6,12 @@
 #include "ascii.h"
 #include "util.h"
 #include "cc.h"
+#include "null.h"
+
+NULLABILITY_NNBDs
 
 struct buffer {
-	unsigned char *str;
+	unsigned char *nullable str;
 	size_t len, cap;
 };
 
@@ -16,7 +19,7 @@ struct scanner {
 	int chr;
 	bool usebuf;
 	bool sawspace;
-	FILE *file;
+	FILE *nullable file;
 	struct location loc;
 	struct buffer buf;
 	struct scanner *next;
@@ -31,7 +34,7 @@ bufadd(struct buffer *b, int c)
 		b->cap = b->cap ? b->cap * 2 : 1<<8;
 		b->str = xreallocarray(b->str, b->cap, 1);
 	}
-	b->str[b->len++] = c;
+	unnull(b->str)[b->len++] = c;
 }
 
 static char *
@@ -381,7 +384,7 @@ again:
 	case 'u':
 		s->usebuf = true;
 		nextchar(s);
-		if (s->buf.str[0] == 'u' && s->chr == '8')
+		if (unnull(s->buf.str)[0] == 'u' && s->chr == '8')
 			nextchar(s);
 		switch (s->chr) {
 		case '\'': return charconst(s);
