@@ -1038,6 +1038,21 @@ postfixexpr(struct scope *s, struct expr *r)
 			}
 			if (r->type->kind != TYPEPOINTER || r->type->base->kind != TYPEFUNC)
 				error(&tok.loc, "called object is not a function");
+
+			/* Nullability checks. */
+			switch (s->ns) {
+			case NSMODC:
+			case NSNNBDm:
+			case NSNNBDr:
+				if (r->qual & QUALNULLABLE)
+					error(&tok.loc, "cannot perform call through a `_Nullable`-qualified function pointer [nullability]");
+				break;
+			case NSNNBDs:
+				if (!(r->qual & QUALNONNULL))
+					error(&tok.loc, "cannot perform call through a non-`_Nonnull`-qualified function pointer [nullability.NNBDs]");
+				break;
+			}
+
 			t = r->type->base;
 			e = mkexpr(EXPRCALL, t->base, r);
 			/* Propagate the nullability qualifiers to the call expression. */
