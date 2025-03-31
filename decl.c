@@ -471,8 +471,8 @@ done:
 	if ((tq & QUALRESTRICT) && (!t || (t->kind != TYPEPOINTER && t->kind != TYPEARRAY)))
 		error(&tok.loc, "'restrict' is only allowed in pointer and array types");
 	/* Actually, `_Nullable` is not allowed in array types, only pointers. */
-	if ((tq & QUALNULLABLE) && (!t || t->kind != TYPEPOINTER))
-		error(&tok.loc, "'_Nullable' is only allowed in pointer types");
+	if ((tq & (QUALNULLABLE|QUALNONNULL)) && (!t || t->kind != TYPEPOINTER))
+		error(&tok.loc, "'_Nullable' and '_Nonnull' qualifiers are only allowed in pointer types [nullability]");
 
 	switch ((int)ts) {
 	case SPECNONE:                                            break;
@@ -569,9 +569,9 @@ declaratortypes(struct scope *s, struct list *result, char **name, struct scope 
 		tq = QUALNONE;
 		while (typequal(&tq))
 			;
-		/* NxNN */
+		/* `_Nonnull` ^ `_Nullable` */
 		if ((tq & (QUALNULLABLE|QUALNONNULL)) == (QUALNULLABLE|QUALNONNULL))
-			error(&tok.loc, "can't use `_Nullable` and `_Nonnull` qualifiers at the same time");
+			error(&tok.loc, "can't use `_Nullable` and `_Nonnull` qualifiers at the same time [nullability]");
 		tq = nullqual(s, tq);
 		t = mkpointertype(NULL, tq);
 		listinsert(result, &t->link);
